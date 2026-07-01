@@ -5,6 +5,8 @@ class Config:
     def __init__(self, config_path="config.json"):
         with open(config_path, "r") as f:
             data = json.load(f)
+        self.group_name = data.get("group_name", "Team-Alpha")
+        self.students = data.get("students", [])
         self.grid_size = tuple(data.get("grid_size", [5, 5]))
         self.max_moves = data.get("max_moves", 25)
         self.num_games = data.get("num_games", 6)

@@ -75,6 +75,7 @@ class Orchestrator:
         game = GameEngine(self.config)
         turn = "Cop"
         game.last_message = "Let the game begin!"
+        trajectory = []
         
         print(f"\n=== Starting Sub-Game {game_num} ===")
         while not game.winner:
@@ -103,6 +104,14 @@ class Orchestrator:
             msg_to_opponent = action.get("message", "...")
             print(f"[{turn} says]: {msg_to_opponent}")
             game.last_message = msg_to_opponent
+            
+            trajectory.append({
+                "turn": turn,
+                "action": action,
+                "cop_pos": list(game.cop_pos),
+                "thief_pos": list(game.thief_pos),
+                "barriers": list(game.barriers)
+            })
 
             if turn == "Cop":
                 if action.get("action") == "barrier":
@@ -136,7 +145,8 @@ class Orchestrator:
         self.sub_games.append({
             "game_id": game_num,
             "winner": game.winner,
-            "scores": scores
+            "scores": scores,
+            "trajectory": trajectory
         })
 
     async def run_pipeline(self):
@@ -153,11 +163,11 @@ class Orchestrator:
         
         # Build JSON Report
         report = {
-            "group_name": "Team-Alpha",
-            "students": [],
+            "group_name": getattr(self.config, 'group_name', 'Team-Alpha'),
+            "students": getattr(self.config, 'students', []),
             "github_repo": "https://github.com/amaraqusai/HW6.git",
-            "cop_mcp_url": getattr(self.config, 'cop_mcp_url', 'local_stdio'),
-            "thief_mcp_url": getattr(self.config, 'thief_mcp_url', 'local_stdio'),
+            "cop_mcp_url": getattr(self.config, 'cop_mcp_url', 'local_stdio') or 'local_stdio',
+            "thief_mcp_url": getattr(self.config, 'thief_mcp_url', 'local_stdio') or 'local_stdio',
             "timezone": "Asia/Jerusalem",
             "sub_games": self.sub_games,
             "totals": {
@@ -165,6 +175,10 @@ class Orchestrator:
                 "thief": self.totals["Thief"]
             }
         }
+
+        with open("report.json", "w") as f:
+            json.dump(report, f, indent=2)
+        print("\nSaved full trajectory and results to report.json")
         
         # Send via Gmail
         if os.path.exists("credentials.json"):
@@ -177,6 +191,13 @@ class Orchestrator:
         else:
             print("\nAutomated Report JSON (credentials.json missing, skipping email):")
             print(json.dumps(report, indent=2))
+            
+        # Plot results
+        try:
+            from plot_results import plot_report
+            plot_report()
+        except ImportError:
+            pass
 
 if __name__ == "__main__":
     orch = Orchestrator()

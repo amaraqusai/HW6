@@ -1,4 +1,6 @@
 {
+  "group_name": "My-Awesome-Group",
+  "students": ["Your Name", "Partner Name"],
   "grid_size": [5, 5],
   "max_moves": 25,
   "num_games": 6,
