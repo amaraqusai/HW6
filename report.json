@@ -1,0 +1,140 @@
+{
+  "group_name": "My-Awesome-Group",
+  "students": [
+    "Your Name",
+    "Partner Name"
+  ],
+  "github_repo": "https://github.com/amaraqusai/HW6.git",
+  "sub_games": [
+    {
+      "game_id": 1,
+      "winner": null,
+      "scores": {
+        "Cop": 0,
+        "Thief": 0
+      },
+      "trajectory": [
+        {
+          "turn": "Cop",
+          "action": {
+            "action": "move",
+            "pos": [
+              4,
+              1
+            ],
+            "message": "Oops! Random move due to LLM error."
+          },
+          "cop_pos": [
+            4,
+            2
+          ],
+          "thief_pos": [
+            3,
+            3
+          ],
+          "barriers": []
+        },
+        {
+          "turn": "Thief",
+          "action": {
+            "action": "move",
+            "pos": [
+              2,
+              2
+            ],
+            "message": "Oops! Random move due to LLM error."
+          },
+          "cop_pos": [
+            4,
+            1
+          ],
+          "thief_pos": [
+            3,
+            3
+          ],
+          "barriers": []
+        },
+        {
+          "turn": "Cop",
+          "action": {
+            "action": "move",
+            "pos": [
+              5,
+              1
+            ],
+            "message": "Oops! Random move due to LLM error."
+          },
+          "cop_pos": [
+            4,
+            1
+          ],
+          "thief_pos": [
+            2,
+            2
+          ],
+          "barriers": []
+        },
+        {
+          "turn": "Thief",
+          "action": {
+            "action": "move",
+            "pos": [
+              2,
+              3
+            ],
+            "message": "Oops! Random move due to LLM error."
+          },
+          "cop_pos": [
+            4,
+            1
+          ],
+          "thief_pos": [
+            2,
+            2
+          ],
+          "barriers": []
+        },
+        {
+          "turn": "Cop",
+          "action": {
+            "action": "move",
+            "pos": [
+              4,
+              0
+            ],
+            "message": "Oops! Random move due to LLM error."
+          },
+          "cop_pos": [
+            4,
+            1
+          ],
+          "thief_pos": [
+            2,
+            3
+          ],
+          "barriers": []
+        },
+        {
+          "turn": "Thief",
+          "action": {
+            "action": "move",
+            "pos": [
+              3,
+              2
+            ],
+            "message": "Oops! Random move due to LLM error."
+          },
+          "cop_pos": [
+            4,
+            0
+          ],
+          "thief_pos": [
+            2,
+            3
+          ],
+          "barriers": []
+        }
+      ]
+    }
+  ]
+}

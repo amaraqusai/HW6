@@ -99,10 +99,11 @@ class Orchestrator:
 
             # Fallback for errors
             if action.get("action") == "error" or not action:
+                print(f"LLM Error/Fallback Triggered. Reason: {action.get('message', 'Unknown')}")
                 dx, dy = random.choice([(0,1), (1,0), (0,-1), (-1,0), (1,1), (-1,-1), (1,-1), (-1,1)])
                 pos = game.cop_pos if turn == "Cop" else game.thief_pos
                 new_pos = (pos[0] + dx, pos[1] + dy)
-                action = {"action": "move", "pos": list(new_pos), "message": "Oops! Random move."}
+                action = {"action": "move", "pos": list(new_pos), "message": "Oops! Random move due to LLM error."}
 
             msg_to_opponent = action.get("message", "...")
             print(f"[{turn} says]: {msg_to_opponent}")
@@ -138,6 +139,29 @@ class Orchestrator:
                     print(f"Thief failed action {action}: {msg}")
                     game.move_thief(new_pos=game.thief_pos) # Skip turn
                     turn = "Cop"
+            
+            # Pace the API calls to avoid Gemini 429 Rate Limits
+            await asyncio.sleep(2)
+            
+            # Save partial report.json for live viewing in browser
+            partial_report = {
+                "group_name": getattr(self.config, 'group_name', 'Team-Alpha'),
+                "students": getattr(self.config, 'students', []),
+                "github_repo": "https://github.com/amaraqusai/HW6.git",
+                "sub_games": self.sub_games + [{
+                    "game_id": game_num,
+                    "winner": None,
+                    "scores": game.get_scores(),
+                    "trajectory": trajectory
+                }]
+            }
+            with open("report.json", "w") as f:
+                json.dump(partial_report, f, indent=2)
+            try:
+                with open("visualizer/report.json", "w") as f:
+                    json.dump(partial_report, f, indent=2)
+            except:
+                pass
 
         print(f"Sub-Game {game_num} over! Winner: {game.winner}")
         scores = game.get_scores()
@@ -193,6 +217,11 @@ class Orchestrator:
 
         with open("report.json", "w") as f:
             json.dump(report, f, indent=2)
+        try:
+            with open("visualizer/report.json", "w") as f:
+                json.dump(report, f, indent=2)
+        except:
+            pass
         print("\nSaved full trajectory and results to report.json")
         
         # Send via Gmail

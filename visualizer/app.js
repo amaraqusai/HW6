@@ -19,9 +19,15 @@ const elements = {
 
 async function init() {
     try {
-        const response = await fetch('../report.json');
-        if (!response.ok) throw new Error('File not found');
-        reportData = await response.json();
+        const response = await fetch('report.json');
+        if (!response.ok) {
+            // fallback
+            const fallbackResponse = await fetch('../report.json');
+            if (!fallbackResponse.ok) throw new Error('File not found');
+            reportData = await fallbackResponse.json();
+        } else {
+            reportData = await response.json();
+        }
         setupUI();
     } catch (e) {
         elements.groupInfo.innerText = "Error loading report.json. Have you run `python orchestrator.py`? (Make sure to view via python -m http.server)";
