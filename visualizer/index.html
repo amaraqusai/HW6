@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cops & Robbers Visualizer</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚔 Cops vs Robbers <span class="highlight">Visualizer</span></h1>
+            <p id="group-info">Loading...</p>
+        </header>
+
+        <div class="dashboard">
+            <div class="controls">
+                <select id="game-selector">
+                    <option value="">Loading games...</option>
+                </select>
+                <div class="playback-controls">
+                    <button id="btn-prev">⏮ Prev</button>
+                    <button id="btn-play">▶ Play</button>
+                    <button id="btn-next">Next ⏭</button>
+                </div>
+                <div class="stats">
+                    <h3>Sub-Game Score</h3>
+                    <p>Cop: <span id="score-cop" class="highlight">0</span></p>
+                    <p>Thief: <span id="score-thief" class="highlight">0</span></p>
+                    <h3 class="mt">Turn Status</h3>
+                    <p id="turn-info">Turn: 0</p>
+                    <p id="message-info">Message: ...</p>
+                </div>
+            </div>
+
+            <div class="grid-container">
+                <div id="grid" class="grid"></div>
+            </div>
+        </div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>
