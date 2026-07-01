@@ -35,7 +35,7 @@ class ReportSender:
         json_report = json.dumps(report_data, indent=2)
         
         message_text = f"Subject: HW6 Auto Report JSON\n\n{json_report}"
-        message = base64.urlsafe_bencode(message_text.encode("utf-8")).decode("utf-8")
+        message = base64.urlsafe_b64encode(message_text.encode("utf-8")).decode("utf-8")
         
         try:
             message_body = {'raw': message}

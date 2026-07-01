@@ -1,22 +1,46 @@
 from fastmcp import FastMCP
+import os
+import json
+from google import genai
+from dotenv import load_dotenv
 
+load_dotenv()
 mcp = FastMCP("CopServer")
 
 @mcp.tool()
-def get_cop_observation(state_json: str) -> str:
-    """Returns the observation for the Cop."""
-    return f"Observation parsed: {state_json}"
+def decide_cop_move(observation_json: str, config_json: str) -> str:
+    """Decides the Cop's next move based on the partial observation."""
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        return json.dumps({"action": "error", "message": "No API key"})
+    
+    client = genai.Client(api_key=api_key)
+    obs = json.loads(observation_json)
+    config = json.loads(config_json)
+    
+    prompt = f"""
+You are playing Cops and Robbers on a {config['grid_size'][0]}x{config['grid_size'][1]} grid.
+You are the Cop. You want to land on the same square as the Thief.
+The Thief wins if they survive for {config['max_moves']} moves.
+Note: You only see the Thief's position if they are within a radius of 2.
 
-@mcp.tool()
-def send_message_to_thief(message: str) -> str:
-    """Sends a natural language message to the Thief."""
-    print(f"[Cop -> Thief]: {message}")
-    return "Message sent."
+Current Game State Observation:
+{json.dumps(obs, indent=2)}
 
-@mcp.tool()
-def verify_position(pos_x: int, pos_y: int) -> bool:
-    """Mutual verification of position."""
-    return True
+Provide your next move as a JSON object:
+If you want to move (up to 1 step in any direction, including diagonals), return: {{"action": "move", "pos": [x, y], "message": "your message to opponent"}}
+If you want to place a barrier, return: {{"action": "barrier", "pos": [x, y], "message": "your message to opponent"}}
+Respond ONLY with valid JSON.
+"""
+    try:
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt,
+            config=genai.types.GenerateContentConfig(response_mime_type="application/json")
+        )
+        return response.text
+    except Exception as e:
+        return json.dumps({"action": "error", "message": str(e)})
 
 if __name__ == "__main__":
     mcp.run()
