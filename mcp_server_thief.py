@@ -42,4 +42,9 @@ Respond ONLY with valid JSON.
         return json.dumps({"action": "error", "message": str(e)})
 
 if __name__ == "__main__":
-    mcp.run()
+    import sys
+    if "--sse" in sys.argv:
+        print("Starting Thief Server with SSE transport on port 5001...")
+        mcp.run(transport="sse", port=5001)
+    else:
+        mcp.run()

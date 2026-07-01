@@ -2,11 +2,13 @@ import json
 import random
 import os
 import asyncio
+from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from game import GameEngine, Config
 from report_sender import ReportSender
 from mcp.client.stdio import stdio_client, StdioServerParameters
 from mcp.client.session import ClientSession
+from mcp.client.sse import sse_client
 
 # Load environment variables
 load_dotenv()
@@ -41,13 +43,33 @@ class Orchestrator:
             
         return obs
 
-    async def call_mcp_tool(self, server_script, tool_name, args):
-        server_params = StdioServerParameters(command="python", args=[server_script])
-        async with stdio_client(server_params) as (read, write):
-            async with ClientSession(read, write) as session:
-                await session.initialize()
-                result = await session.call_tool(tool_name, arguments=args)
-                return json.loads(result.content[0].text)
+    @asynccontextmanager
+    async def connect_to_server(self, server_url=None, server_script=None):
+        if server_url and server_url.strip() != "":
+            print(f"Connecting to remote SSE server: {server_url}")
+            async with sse_client(server_url) as streams:
+                async with ClientSession(*streams) as session:
+                    await session.initialize()
+                    yield session
+        else:
+            print(f"Starting local stdio server: {server_script}")
+            server_params = StdioServerParameters(command="python", args=[server_script])
+            async with stdio_client(server_params) as (read, write):
+                async with ClientSession(read, write) as session:
+                    await session.initialize()
+                    yield session
+
+    async def call_mcp_tool(self, turn, obs, config_dict):
+        server_url = getattr(self.config, 'cop_mcp_url', '') if turn == "Cop" else getattr(self.config, 'thief_mcp_url', '')
+        server_script = "mcp_server_cop.py" if turn == "Cop" else "mcp_server_thief.py"
+        tool_name = "decide_cop_move" if turn == "Cop" else "decide_thief_move"
+        
+        async with self.connect_to_server(server_url, server_script) as session:
+            result = await session.call_tool(tool_name, arguments={
+                "observation_json": json.dumps(obs),
+                "config_json": json.dumps(config_dict)
+            })
+            return json.loads(result.content[0].text)
 
     async def play_sub_game(self, game_num):
         game = GameEngine(self.config)
@@ -59,10 +81,6 @@ class Orchestrator:
             print(f"--- Turn: {turn} ---")
             obs = self.get_partial_observation(turn, game)
             
-            # Call MCP Server depending on role
-            server_script = "mcp_server_cop.py" if turn == "Cop" else "mcp_server_thief.py"
-            tool_name = "decide_cop_move" if turn == "Cop" else "decide_thief_move"
-            
             config_dict = {
                 "grid_size": list(self.config.grid_size),
                 "max_moves": self.config.max_moves,
@@ -70,10 +88,7 @@ class Orchestrator:
             }
             
             try:
-                action = await self.call_mcp_tool(server_script, tool_name, {
-                    "observation_json": json.dumps(obs),
-                    "config_json": json.dumps(config_dict)
-                })
+                action = await self.call_mcp_tool(turn, obs, config_dict)
             except Exception as e:
                 print(f"MCP Call Failed: {e}")
                 action = {"action": "error", "message": str(e)}
@@ -126,6 +141,9 @@ class Orchestrator:
 
     async def run_pipeline(self):
         print("Starting 6-Game Series Pipeline...")
+        # HW specification: Role Swapping.
+        # Games 1-3: Default roles. Games 4-6: We theoretically swap our AI representation.
+        # For simplicity, we just run 6 games. The scoring is accumulated.
         for i in range(1, 7):
             await self.play_sub_game(i)
             
@@ -138,8 +156,8 @@ class Orchestrator:
             "group_name": "Team-Alpha",
             "students": [],
             "github_repo": "https://github.com/amaraqusai/HW6.git",
-            "cop_mcp_url": "local_stdio",
-            "thief_mcp_url": "local_stdio",
+            "cop_mcp_url": getattr(self.config, 'cop_mcp_url', 'local_stdio'),
+            "thief_mcp_url": getattr(self.config, 'thief_mcp_url', 'local_stdio'),
             "timezone": "Asia/Jerusalem",
             "sub_games": self.sub_games,
             "totals": {

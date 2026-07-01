@@ -9,6 +9,8 @@ class Config:
         self.max_moves = data.get("max_moves", 25)
         self.num_games = data.get("num_games", 6)
         self.max_barriers = data.get("max_barriers", 5)
+        self.cop_mcp_url = data.get("cop_mcp_url", "")
+        self.thief_mcp_url = data.get("thief_mcp_url", "")
         scoring = data.get("scoring", {})
         self.cop_win = scoring.get("cop_win", 20)
         self.thief_win = scoring.get("thief_win", 10)

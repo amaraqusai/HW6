@@ -43,4 +43,9 @@ Respond ONLY with valid JSON.
         return json.dumps({"action": "error", "message": str(e)})
 
 if __name__ == "__main__":
-    mcp.run()
+    import sys
+    if "--sse" in sys.argv:
+        print("Starting Cop Server with SSE transport on port 5000...")
+        mcp.run(transport="sse", port=5000)
+    else:
+        mcp.run()
