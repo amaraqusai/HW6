@@ -13,6 +13,7 @@ class Orchestrator:
         self.config = Config("config.json")
         self.game = GameEngine(self.config)
         self.turn = "Cop"
+        self.last_message = "No message yet."
         
         api_key = os.environ.get("GEMINI_API_KEY")
         if api_key:
@@ -34,8 +35,8 @@ Current Game State Observation:
 {json.dumps(observation, indent=2)}
 
 Provide your next move as a JSON object:
-If you want to move (up to 1 step in any direction, including diagonals), return: {{"action": "move", "pos": [x, y]}}
-If you are the Cop and want to place a barrier, return: {{"action": "barrier", "pos": [x, y]}}
+If you want to move (up to 1 step in any direction, including diagonals), return: {{"action": "move", "pos": [x, y], "message": "your natural language message to the opponent"}}
+If you are the Cop and want to place a barrier, return: {{"action": "barrier", "pos": [x, y], "message": "your natural language message to the opponent"}}
 Respond ONLY with valid JSON.
 """
         try:
@@ -58,7 +59,8 @@ Respond ONLY with valid JSON.
             "moves_taken": self.game.moves_taken,
             "max_moves": self.config.max_moves,
             "cop_barriers_placed": self.game.cop_barriers_placed,
-            "max_barriers": self.config.max_barriers
+            "max_barriers": self.config.max_barriers,
+            "opponent_message": self.last_message
         }
 
     def play_game(self):
@@ -73,7 +75,11 @@ Respond ONLY with valid JSON.
                 dx, dy = random.choice([(0,1), (1,0), (0,-1), (-1,0), (1,1), (-1,-1), (1,-1), (-1,1)])
                 pos = self.game.cop_pos if self.turn == "Cop" else self.game.thief_pos
                 new_pos = (pos[0] + dx, pos[1] + dy)
-                action = {"action": "move", "pos": list(new_pos)}
+                action = {"action": "move", "pos": list(new_pos), "message": "I have no words."}
+
+            msg_to_opponent = action.get("message", "...")
+            print(f"[{self.turn} says]: {msg_to_opponent}")
+            self.last_message = msg_to_opponent
 
             if self.turn == "Cop":
                 if action.get("action") == "barrier":
