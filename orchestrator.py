@@ -2,7 +2,7 @@ import json
 import random
 import os
 import asyncio
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, AsyncExitStack
 from dotenv import load_dotenv
 from game import GameEngine, Config
 from report_sender import ReportSender
@@ -18,6 +18,8 @@ class Orchestrator:
         self.config = Config("config.json")
         self.totals = {"Cop": 0, "Thief": 0}
         self.sub_games = []
+        self.cop_session = None
+        self.thief_session = None
 
     def get_partial_observation(self, role, game):
         # Calculate maximum coordinate distance (Chebyshev distance / radius)
@@ -53,23 +55,24 @@ class Orchestrator:
                     yield session
         else:
             print(f"Starting local stdio server: {server_script}")
-            server_params = StdioServerParameters(command="python", args=[server_script])
+            # Ensure Python output is unbuffered
+            env = os.environ.copy()
+            env["PYTHONUNBUFFERED"] = "1"
+            server_params = StdioServerParameters(command="python", args=[server_script], env=env)
             async with stdio_client(server_params) as (read, write):
                 async with ClientSession(read, write) as session:
                     await session.initialize()
                     yield session
 
     async def call_mcp_tool(self, turn, obs, config_dict):
-        server_url = getattr(self.config, 'cop_mcp_url', '') if turn == "Cop" else getattr(self.config, 'thief_mcp_url', '')
-        server_script = "mcp_server_cop.py" if turn == "Cop" else "mcp_server_thief.py"
+        session = self.cop_session if turn == "Cop" else self.thief_session
         tool_name = "decide_cop_move" if turn == "Cop" else "decide_thief_move"
         
-        async with self.connect_to_server(server_url, server_script) as session:
-            result = await session.call_tool(tool_name, arguments={
-                "observation_json": json.dumps(obs),
-                "config_json": json.dumps(config_dict)
-            })
-            return json.loads(result.content[0].text)
+        result = await session.call_tool(tool_name, arguments={
+            "observation_json": json.dumps(obs),
+            "config_json": json.dumps(config_dict)
+        })
+        return json.loads(result.content[0].text)
 
     async def play_sub_game(self, game_num):
         game = GameEngine(self.config)
@@ -151,12 +154,24 @@ class Orchestrator:
 
     async def run_pipeline(self):
         print("Starting 6-Game Series Pipeline...")
-        # HW specification: Role Swapping.
-        # Games 1-3: Default roles. Games 4-6: We theoretically swap our AI representation.
-        # For simplicity, we just run 6 games. The scoring is accumulated.
-        for i in range(1, 7):
-            await self.play_sub_game(i)
+        
+        # Connect to MCP servers once and keep sessions alive
+        async with AsyncExitStack() as stack:
+            cop_url = getattr(self.config, 'cop_mcp_url', '')
+            thief_url = getattr(self.config, 'thief_mcp_url', '')
             
+            print("Initializing Cop Server connection...")
+            self.cop_session = await stack.enter_async_context(self.connect_to_server(cop_url, "mcp_server_cop.py"))
+            
+            print("Initializing Thief Server connection...")
+            self.thief_session = await stack.enter_async_context(self.connect_to_server(thief_url, "mcp_server_thief.py"))
+            
+            # HW specification: Role Swapping.
+            # Games 1-3: Default roles. Games 4-6: We theoretically swap our AI representation.
+            # For simplicity, we just run 6 games. The scoring is accumulated.
+            for i in range(1, 7):
+                await self.play_sub_game(i)
+                
         print("\n=== FINAL RESULTS ===")
         print(f"Total Cop Score: {self.totals['Cop']}")
         print(f"Total Thief Score: {self.totals['Thief']}")
