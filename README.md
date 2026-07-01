@@ -23,7 +23,7 @@ The architecture uses the **Model Context Protocol (MCP)** via the `fastmcp` SDK
 ```mermaid
 graph TD
     subgraph Local Environment
-        O[Orchestrator<br/>(MCP Client & Game Engine)]
+        O["Orchestrator<br/>(MCP Client & Game Engine)"]
     end
 
     subgraph Agent Servers
@@ -32,8 +32,8 @@ graph TD
     end
     
     subgraph LLM Providers
-        LLM1[Gemini 2.5 Flash]
-        LLM2[Gemini 2.5 Flash]
+        LLM1[Gemini Flash Latest]
+        LLM2[Gemini Flash Latest]
     end
 
     O <-->|stdio / SSE| C
