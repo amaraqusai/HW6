@@ -14,7 +14,7 @@ def decide_thief_move(observation_json: str, config_json: str) -> str:
     if not api_key:
         return json.dumps({"action": "error", "message": "No API key"})
     
-    client = genai.Client(api_key=api_key)
+    client = genai.Client(vertexai=False, api_key=api_key)
     obs = json.loads(observation_json)
     config = json.loads(config_json)
     
@@ -33,7 +33,7 @@ Respond ONLY with valid JSON.
 """
     try:
         response = client.models.generate_content(
-            model='gemini-2.5-flash',
+            model='gemini-flash-lite-latest',
             contents=prompt,
             config=genai.types.GenerateContentConfig(response_mime_type="application/json")
         )
