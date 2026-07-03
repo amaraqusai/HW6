@@ -13,9 +13,12 @@ from mcp.client.sse import sse_client
 # Load environment variables
 load_dotenv()
 
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 class Orchestrator:
     def __init__(self):
-        self.config = Config("config.json")
+        config_path = os.path.join(BASE_DIR, "config", "config.json")
+        self.config = Config(config_path)
         self.totals = {"Cop": 0, "Thief": 0}
         self.sub_games = []
         self.cop_session = None
@@ -72,7 +75,8 @@ class Orchestrator:
             # Ensure Python output is unbuffered
             env = os.environ.copy()
             env["PYTHONUNBUFFERED"] = "1"
-            server_params = StdioServerParameters(command="python", args=[server_script], env=env)
+            server_path = os.path.join(BASE_DIR, "src", server_script)
+            server_params = StdioServerParameters(command="python", args=[server_path], env=env)
             async with stdio_client(server_params) as (read, write):
                 async with ClientSession(read, write) as session:
                     await session.initialize()
@@ -194,10 +198,12 @@ class Orchestrator:
                     "github_repo": "https://github.com/amaraqusai/HW6.git",
                     "sub_games": sorted_games
                 }
-                with open("report.json", "w") as f:
+                report_path = os.path.join(BASE_DIR, "output", "report.json")
+                with open(report_path, "w") as f:
                     json.dump(partial_report, f, indent=2)
                 try:
-                    with open("visualizer/report.json", "w") as f:
+                    visualizer_report_path = os.path.join(BASE_DIR, "visualizer", "report.json")
+                    with open(visualizer_report_path, "w") as f:
                         json.dump(partial_report, f, indent=2)
                 except:
                     pass
@@ -258,17 +264,20 @@ class Orchestrator:
             }
         }
 
-        with open("report.json", "w") as f:
+        report_path = os.path.join(BASE_DIR, "output", "report.json")
+        with open(report_path, "w") as f:
             json.dump(report, f, indent=2)
         try:
-            with open("visualizer/report.json", "w") as f:
+            visualizer_report_path = os.path.join(BASE_DIR, "visualizer", "report.json")
+            with open(visualizer_report_path, "w") as f:
                 json.dump(report, f, indent=2)
         except:
             pass
-        print("\nSaved full trajectory and results to report.json")
+        print(f"\nSaved full trajectory and results to {report_path}")
         
         # Send via Gmail
-        if os.path.exists("credentials.json"):
+        creds_path = os.path.join(BASE_DIR, "credentials.json")
+        if os.path.exists(creds_path):
             print("Sending automated JSON report via Gmail API...")
             try:
                 sender = ReportSender()

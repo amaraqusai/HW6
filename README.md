@@ -71,27 +71,27 @@ By default, the orchestrator acts as an MCP client and securely spins up the ser
 3. Install requirements: `pip install -r requirements.txt`
 4. Run the 6-game series:
    ```bash
-   python orchestrator.py
+   python src/orchestrator.py
    ```
 
 ## ☁️ How to Run (Cloud/SSE Mode for Inter-Group Battles)
 For the inter-group battle, the servers can be exposed via SSE and accessed by a remote orchestrator.
 1. Spin up the Cop server on SSE transport:
    ```bash
-   python mcp_server_cop.py --sse
+   python src/mcp_server_cop.py --sse
    ```
 2. Expose the port (5000) using `ngrok` or `localtonet`:
    ```bash
    ngrok http 5000
    ```
-3. Update `config.json` on the opposing team's machine to point to your ngrok URL:
+3. Update `config/config.json` on the opposing team's machine to point to your ngrok URL:
    ```json
    "cop_mcp_url": "https://your-ngrok-url/sse"
    ```
-4. When the opposing team runs their `orchestrator.py`, it will dynamically connect to your remote MCP server via HTTP Server-Sent Events (SSE) and query your LLM for moves!
+4. When the opposing team runs their `src/orchestrator.py`, it will dynamically connect to your remote MCP server via HTTP Server-Sent Events (SSE) and query your LLM for moves!
 
 ## 📊 Automated Reporting
-The system features an automated report dispatcher (`report_sender.py`). Once the 6 sub-game pipeline concludes, it generates a comprehensive JSON report containing all trajectories, messages, and cumulative scores, and dispatches it directly to `rmisegal+uoh26b@gmail.com`.
+The system features an automated report dispatcher (`src/report_sender.py`). Once the 6 sub-game pipeline concludes, it generates a comprehensive JSON report containing all trajectories, messages, and cumulative scores, and dispatches it directly to `rmisegal+uoh26b@gmail.com`.
 
 ## 📈 Visualization
 A web-based visualizer is included in the `visualizer/` directory. After running the orchestrator:

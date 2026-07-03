@@ -8,24 +8,29 @@ import os
 
 SCOPES = ['https://www.googleapis.com/auth/gmail.send']
 
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 class ReportSender:
     def __init__(self):
         self.creds = None
         self._authenticate()
 
     def _authenticate(self):
-        if os.path.exists('token.json'):
-            self.creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+        token_path = os.path.join(BASE_DIR, 'token.json')
+        creds_path = os.path.join(BASE_DIR, 'credentials.json')
+        
+        if os.path.exists(token_path):
+            self.creds = Credentials.from_authorized_user_file(token_path, SCOPES)
         
         if not self.creds or not self.creds.valid:
             if self.creds and self.creds.expired and self.creds.refresh_token:
                 self.creds.refresh(Request())
             else:
                 flow = InstalledAppFlow.from_client_secrets_file(
-                    'credentials.json', SCOPES)
+                    creds_path, SCOPES)
                 self.creds = flow.run_local_server(port=0)
             
-            with open('token.json', 'w') as token:
+            with open(token_path, 'w') as token:
                 token.write(self.creds.to_json())
 
     def send_report(self, report_data: dict, recipient="rmisegal+uoh26b@gmail.com"):
@@ -61,7 +66,8 @@ if __name__ == "__main__":
     }
     
     # Needs credentials.json to actually send
-    if os.path.exists('credentials.json'):
+    creds_path = os.path.join(BASE_DIR, 'credentials.json')
+    if os.path.exists(creds_path):
         sender = ReportSender()
         sender.send_report(test_report)
     else:

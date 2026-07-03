@@ -1,8 +1,14 @@
 import json
 import random
 
+import os
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 class Config:
-    def __init__(self, config_path="config.json"):
+    def __init__(self, config_path=None):
+        if config_path is None:
+            config_path = os.path.join(BASE_DIR, "config", "config.json")
         with open(config_path, "r") as f:
             data = json.load(f)
         self.group_name = data.get("group_name", "Team-Alpha")

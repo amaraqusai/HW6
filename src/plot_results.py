@@ -2,9 +2,14 @@ import json
 import matplotlib.pyplot as plt
 import os
 
-def plot_report(report_path="report.json"):
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+def plot_report(report_path=None):
+    if report_path is None:
+        report_path = os.path.join(BASE_DIR, "output", "report.json")
+        
     if not os.path.exists(report_path):
-        print("report.json not found. Run the orchestrator first.")
+        print(f"{report_path} not found. Run the orchestrator first.")
         return
 
     with open(report_path, "r") as f:
@@ -33,8 +38,9 @@ def plot_report(report_path="report.json"):
     ax.legend()
     
     plt.tight_layout()
-    plt.savefig('results.png', dpi=300)
-    print("Generated results.png successfully.")
+    output_path = os.path.join(BASE_DIR, "output", "results.png")
+    plt.savefig(output_path, dpi=300)
+    print(f"Generated {output_path} successfully.")
 
 if __name__ == "__main__":
     plot_report()
