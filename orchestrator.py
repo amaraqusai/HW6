@@ -22,7 +22,7 @@ class Orchestrator:
         self.thief_session = None
         self.file_lock = asyncio.Lock()
 
-    def get_partial_observation(self, role, game):
+    def get_partial_observation(self, role, game, trajectory=None):
         # Calculate maximum coordinate distance (Chebyshev distance / radius)
         dx = abs(game.cop_pos[0] - game.thief_pos[0])
         dy = abs(game.cop_pos[1] - game.thief_pos[1])
@@ -43,6 +43,19 @@ class Orchestrator:
             obs["opponent_pos"] = game.thief_pos if role == "Cop" else game.cop_pos
         else:
             obs["opponent_pos"] = "unknown (out of radius)"
+        
+        # Include last 5 moves as history for strategic context
+        if trajectory:
+            recent = trajectory[-5:]
+            obs["move_history"] = [
+                {
+                    "turn": t["turn"],
+                    "action": t["action"].get("action", "move"),
+                    "pos": t["action"].get("pos", []),
+                    "message": t["action"].get("message", "")
+                }
+                for t in recent
+            ]
             
         return obs
 
@@ -69,7 +82,7 @@ class Orchestrator:
         session = self.cop_session if turn == "Cop" else self.thief_session
         tool_name = "decide_cop_move" if turn == "Cop" else "decide_thief_move"
         
-        for attempt in range(3):
+        for attempt in range(4):
             try:
                 result = await session.call_tool(tool_name, arguments={
                     "observation_json": json.dumps(obs),
@@ -80,10 +93,22 @@ class Orchestrator:
                     raise Exception(content.get("message"))
                 return content
             except Exception as e:
+                error_str = str(e)
                 print(f"[{turn}] API/JSON Error on attempt {attempt+1}: {e}")
-                if attempt == 2:
-                    return {"action": "error", "message": str(e)}
-                await asyncio.sleep(1)
+                if attempt == 3:
+                    return {"action": "error", "message": error_str}
+                # Smart backoff: if it's a rate limit, wait the suggested time
+                if "RESOURCE_EXHAUSTED" in error_str:
+                    wait_time = min(30, 5 * (attempt + 1))  # 5s, 10s, 15s
+                    print(f"[{turn}] Rate limited. Waiting {wait_time}s before retry...")
+                    await asyncio.sleep(wait_time)
+                else:
+                    await asyncio.sleep(2)
+
+    async def _staggered_game(self, game_num):
+        """Stagger game starts by 1.5s each to avoid simultaneous API rate limit hits."""
+        await asyncio.sleep((game_num - 1) * 1.5)
+        await self.play_sub_game(game_num)
 
     async def play_sub_game(self, game_num):
         game = GameEngine(self.config)
@@ -94,7 +119,7 @@ class Orchestrator:
         print(f"\n=== Starting Sub-Game {game_num} ===")
         while not game.winner:
             print(f"--- Turn: {turn} ---")
-            obs = self.get_partial_observation(turn, game)
+            obs = self.get_partial_observation(turn, game, trajectory)
             
             config_dict = {
                 "grid_size": list(self.config.grid_size),
@@ -151,8 +176,8 @@ class Orchestrator:
                     game.move_thief(new_pos=game.thief_pos) # Skip turn
                     turn = "Cop"
             
-            # Pace the API calls to avoid Gemini 429 Rate Limits
-            await asyncio.sleep(2)
+            # Pace the API calls to avoid Gemini free-tier rate limits (15 RPM)
+            await asyncio.sleep(4)
             
             # Save partial report.json for live viewing in browser
             async with self.file_lock:
@@ -206,11 +231,11 @@ class Orchestrator:
             self.thief_session = await stack.enter_async_context(self.connect_to_server(thief_url, "mcp_server_thief.py"))
             
             # HW specification: Role Swapping.
-            print(f"Starting {self.config.num_games} sub-games concurrently...")
-            tasks = []
+            # Games 1-3: Default roles. Games 4-6: Swapped AI representation.
+            # Run sequentially to respect free-tier API rate limits.
+            print(f"Starting {self.config.num_games} sub-games sequentially...")
             for i in range(1, self.config.num_games + 1):
-                tasks.append(self.play_sub_game(i))
-            await asyncio.gather(*tasks)
+                await self.play_sub_game(i)
                 
         # Sort sub_games before final report
         self.sub_games.sort(key=lambda x: x['game_id'])

@@ -39,12 +39,14 @@ class GameEngine:
         return (random.randint(0, self.config.grid_size[0] - 1),
                 random.randint(0, self.config.grid_size[1] - 1))
 
-    def is_valid_move(self, pos, new_pos):
+    def is_valid_move(self, pos, new_pos, allow_wait=False):
         # Allow moving 1 step in any direction (including diagonals)
         dx = abs(new_pos[0] - pos[0])
         dy = abs(new_pos[1] - pos[1])
         
-        if dx > 1 or dy > 1 or (dx == 0 and dy == 0):
+        if dx > 1 or dy > 1:
+            return False
+        if dx == 0 and dy == 0 and not allow_wait:
             return False
             
         if not (0 <= new_pos[0] < self.config.grid_size[0] and 0 <= new_pos[1] < self.config.grid_size[1]):
@@ -86,7 +88,7 @@ class GameEngine:
         if self.winner:
             return False, "Game is already over"
 
-        if self.is_valid_move(self.thief_pos, new_pos):
+        if self.is_valid_move(self.thief_pos, new_pos, allow_wait=True):
             self.thief_pos = new_pos
             self.moves_taken += 1
             self._check_win_condition()
