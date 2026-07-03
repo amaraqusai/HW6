@@ -20,6 +20,7 @@ class Orchestrator:
         self.sub_games = []
         self.cop_session = None
         self.thief_session = None
+        self.file_lock = asyncio.Lock()
 
     def get_partial_observation(self, role, game):
         # Calculate maximum coordinate distance (Chebyshev distance / radius)
@@ -68,11 +69,21 @@ class Orchestrator:
         session = self.cop_session if turn == "Cop" else self.thief_session
         tool_name = "decide_cop_move" if turn == "Cop" else "decide_thief_move"
         
-        result = await session.call_tool(tool_name, arguments={
-            "observation_json": json.dumps(obs),
-            "config_json": json.dumps(config_dict)
-        })
-        return json.loads(result.content[0].text)
+        for attempt in range(3):
+            try:
+                result = await session.call_tool(tool_name, arguments={
+                    "observation_json": json.dumps(obs),
+                    "config_json": json.dumps(config_dict)
+                })
+                content = json.loads(result.content[0].text)
+                if content.get("action") == "error":
+                    raise Exception(content.get("message"))
+                return content
+            except Exception as e:
+                print(f"[{turn}] API/JSON Error on attempt {attempt+1}: {e}")
+                if attempt == 2:
+                    return {"action": "error", "message": str(e)}
+                await asyncio.sleep(1)
 
     async def play_sub_game(self, game_num):
         game = GameEngine(self.config)
@@ -144,37 +155,41 @@ class Orchestrator:
             await asyncio.sleep(2)
             
             # Save partial report.json for live viewing in browser
-            partial_report = {
-                "group_name": getattr(self.config, 'group_name', 'Team-Alpha'),
-                "students": getattr(self.config, 'students', []),
-                "github_repo": "https://github.com/amaraqusai/HW6.git",
-                "sub_games": self.sub_games + [{
+            async with self.file_lock:
+                sorted_games = sorted(self.sub_games + [{
                     "game_id": game_num,
                     "winner": None,
                     "scores": game.get_scores(),
                     "trajectory": trajectory
-                }]
-            }
-            with open("report.json", "w") as f:
-                json.dump(partial_report, f, indent=2)
-            try:
-                with open("visualizer/report.json", "w") as f:
+                }], key=lambda x: x['game_id'])
+                
+                partial_report = {
+                    "group_name": getattr(self.config, 'group_name', 'Team-Alpha'),
+                    "students": getattr(self.config, 'students', []),
+                    "github_repo": "https://github.com/amaraqusai/HW6.git",
+                    "sub_games": sorted_games
+                }
+                with open("report.json", "w") as f:
                     json.dump(partial_report, f, indent=2)
-            except:
-                pass
+                try:
+                    with open("visualizer/report.json", "w") as f:
+                        json.dump(partial_report, f, indent=2)
+                except:
+                    pass
 
         print(f"Sub-Game {game_num} over! Winner: {game.winner}")
         scores = game.get_scores()
-        print(f"Scores: {scores}")
+        print(f"Scores for Game {game_num}: {scores}")
         
-        self.totals["Cop"] += scores["Cop"]
-        self.totals["Thief"] += scores["Thief"]
-        self.sub_games.append({
-            "game_id": game_num,
-            "winner": game.winner,
-            "scores": scores,
-            "trajectory": trajectory
-        })
+        async with self.file_lock:
+            self.totals["Cop"] += scores["Cop"]
+            self.totals["Thief"] += scores["Thief"]
+            self.sub_games.append({
+                "game_id": game_num,
+                "winner": game.winner,
+                "scores": scores,
+                "trajectory": trajectory
+            })
 
     async def run_pipeline(self):
         print("Starting 6-Game Series Pipeline...")
@@ -191,11 +206,14 @@ class Orchestrator:
             self.thief_session = await stack.enter_async_context(self.connect_to_server(thief_url, "mcp_server_thief.py"))
             
             # HW specification: Role Swapping.
-            # Games 1-3: Default roles. Games 4-6: We theoretically swap our AI representation.
-            # For simplicity, we just run 6 games. The scoring is accumulated.
-            for i in range(1, 7):
-                await self.play_sub_game(i)
+            print(f"Starting {self.config.num_games} sub-games concurrently...")
+            tasks = []
+            for i in range(1, self.config.num_games + 1):
+                tasks.append(self.play_sub_game(i))
+            await asyncio.gather(*tasks)
                 
+        # Sort sub_games before final report
+        self.sub_games.sort(key=lambda x: x['game_id'])
         print("\n=== FINAL RESULTS ===")
         print(f"Total Cop Score: {self.totals['Cop']}")
         print(f"Total Thief Score: {self.totals['Thief']}")

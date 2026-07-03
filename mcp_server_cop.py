@@ -27,9 +27,9 @@ Note: You only see the Thief's position if they are within a radius of 2.
 Current Game State Observation:
 {json.dumps(obs, indent=2)}
 
-Provide your next move as a JSON object:
-If you want to move (up to 1 step in any direction, including diagonals), return: {{"action": "move", "pos": [x, y], "message": "your message to opponent"}}
-If you want to place a barrier, return: {{"action": "barrier", "pos": [x, y], "message": "your message to opponent"}}
+Provide your next move as a JSON object. First, write out your strategic reasoning in a "thought" field.
+If you want to move (up to 1 step in any direction, including diagonals), return: {{"thought": "your strategy", "action": "move", "pos": [x, y], "message": "your message to opponent"}}
+If you want to place a barrier, return: {{"thought": "your strategy", "action": "barrier", "pos": [x, y], "message": "your message to opponent"}}
 Respond ONLY with valid JSON.
 """
     try:
